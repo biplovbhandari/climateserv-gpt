@@ -1,0 +1,10 @@
+cachetools
+climateserv
+google-ai-generativelanguage
+google-api-core
+google-auth
+google-generativeai
+googleapis-common-protos
+gradio
+gradio-client
+python-dotenv
