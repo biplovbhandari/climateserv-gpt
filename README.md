@@ -71,4 +71,8 @@ This tool is available under the open source [Apache License 2.0](https://github
 
 ## Workflow
 
-![Existing Workflow](assets/workflow.png)
+![Existing Workflow](./assets/workflow.png)
+
+## Working Prototype App
+
+![Demo of ClimateServ API Tool](./assets/demo.gif)
