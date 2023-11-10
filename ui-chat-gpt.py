@@ -25,13 +25,6 @@ request_header = {
     "Content-Type": "application/json",
     "Authorization": "Bearer " + api_key
 }
-# Format instructions for GPT engine
-instructions = """I want you to extract five pieces of information from the following prompt.
-Extract datasettype, reducertype, startdate, enddate. The startdate and enddate are provided as YYYY-MM-DD and they should be formatted as MM/DD/YYYY. \
-    The fifth value is called bbox which actually is the bounding box represented as an array of four arrays (or list of lists) where each inner array represents \
-        comma separated lattitude and longitude. The four inner array are the value of the Top-left corner, Top-right corner, Bottom-left corner, and Bottom-right corner coordinates of the place name from the prompt. \
-        Return these five values separated by commas.
-The prompt is here """
 
 datasettype_lookup_table = {
     "centralasiaemodis": "CentralAsia_eMODIS",
@@ -64,8 +57,34 @@ reducers_lookup_table = {
     "maximum": "Max",
     "min": "Min",
     "minimum": "Min",
+    "median": "Median",
+    "range": "Range",
+    "sum": "Sum",
+    "total": "Sum",
 }
 
+# Format instructions for GPT engine
+instructions = f"""I want you to extract five pieces of information from the following prompt.
+
+Extract datasettype, reducertype, startdate, enddate. The startdate and enddate needs to be formatted as MM/DD/YYYY.
+
+I have the lookup table for the datasettype as below
+{datasettype_lookup_table}
+
+And the reducertype lookup table looks as below
+{reducers_lookup_table}
+
+The fifth value is called bbox which actually is the bounding box represented as an array of five arrays (or list of lists) where each inner array represents comma separated lattitude and longitude in WGS 84 upto 5 decimal places. The five four inner array are the values (latitude and longitude) of the Top-left corner, Top-right corner, Bottom-right corner, Bottom-left corner, and Top-left corner coordinates respectively of the place name from the prompt.
+
+Return these five values separated by commas.
+
+Example prompts:
+1. What is the maximum rainfall for Cambodia for first half of 2020? The response should be CHIRPS, Max, 01/01/2020, 06/30/2020, [[102.33909, 14.68949], [107.63234, 14.68949], [107.63234, 9.91276], [102.33909, 9.91276], [102.33909, 14.68949]]
+2. What is the average centralasiaemodis value between 2018-01-03 to 2018-03-16 for Kenya? The response should be CentralAsia_eMODIS, Average, 01/03/2018, 03/16/2018, [33.91091, 4.61953], [41.91029, 4.61953], [41.91029, -4.72507], [33.91091, -4.72507], [33.91091, 4.61953]
+3. What is the mean smap value for Vietnam for the first quarter of 2019? The response should be USDA_SMAP, Average, 01/01/2019, 03/31/2019, [[102.14146, 23.39179],  [109.46263, 23.39179], [109.46263, 8.410355], [102.14146, 8.410355], [102.14146, 23.39179]]
+
+The prompt is here:
+"""
 
 def make_climateserv_request(request_data):
     res = climateserv.api.request_data(
@@ -131,25 +150,25 @@ def generate_response(user_input):
 
     # Strip white space and make lowercase
     output = [s.strip() for s in output]
-    output = [s.lower() for s in output]
+    # output = [s.lower() for s in output]
+
     try:
         dataset_type = datasettype_lookup_table[output[0].strip()]
         reducer_type = reducers_lookup_table[output[1].strip()]
-        start_date = output[2].strip()
-        end_date = output[3].strip()
     except KeyError:
-        dt = output[0].split("datasettype: ")[1]
-        dataset_type = datasettype_lookup_table[dt]
-        print(f"dataset_type: {dataset_type}")
-        reducer_type = reducers_lookup_table[output[1].split("reducertype: ")[1]]
-        start_date = output[2].split("startdate: ")[1]
-        end_date = output[3].split("enddate: ")[1]
+        dataset_type = output[0]
+        reducer_type = output[1]
+
+    start_date = output[2].strip()
+    end_date = output[3].strip()
 
     try:
         bbox = eval(parsed[parsed.index("["):])
     except:
         bbox = eval(parsed.split("bbox:")[1])   # response[4:]
-    seasonal_ensemble = ""
+
+    # Doesn't run ensemble mode for now
+    seasonal_ensemble = False
     seasional_variable = ""
 
     request_data = {
@@ -157,11 +176,12 @@ def generate_response(user_input):
         "reducer_type": reducer_type,
         "start_date": start_date,
         "end_date": end_date,
-        "bbox": bbox,
+        "bbox": bbox if type(bbox) == list else list(bbox),
         "seasonal_ensemble": seasonal_ensemble,
         "seasonal_variable": seasional_variable,
         "llm": True,
     }
+    print("request_data")
     print(request_data)
 
     try:
